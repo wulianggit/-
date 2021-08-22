@@ -38,9 +38,9 @@ typedef struct redisObject {
 
    ```c
    struct sdshdr{
-           int len;//buf数组中已经使用的字节的数量&#xff0c;也就是SDS字符串长度
+           int len;//buf数组中已经使用的字节的数量,也就是SDS字符串长度
            int  free;//buf数组中未使用的字节的数量
-           char buf[];//字节数组&#xff0c;字符串就保存在这里面
+           char buf[];//字节数组,字符串就保存在这里面
    };
    ```
 
@@ -63,4 +63,131 @@ typedef struct redisObject {
 4. SDS 内存扩展机制
 
    在已经分配的内存低于1M时，每次扩容都是以现有内存2倍的方式扩容；当超过1M时，每次只扩容1M
+
+## 三、5种基本数据类型
+
+### 1、字符串—string
+
+ 1). 常见命令
+
+```tex
+set get | mset mget | setrange getrange | getset | append | strlen
+
+incr decr | incr by decrby |
+
+setbit getbit | bitcount | bitop | bitpos
+```
+
+ 2). 使用场景
+
+* 计数器。如：文章浏览数、帖子点赞数等
+
+  ```bash
+  incr article:100.view # ID为100的文章，每打开一次，浏览次数增加1
+  ```
+
+* 分布式锁。如：秒杀活动中，商品库存问题
+
+  ```bash
+  set goods:100 1 EX 30 NX # 当key goods:100 不存在时拿到锁，并设置过期时间为30s
+  ```
+
+* 缓存。如果：热点数据的缓存
+
+  ```bash
+  set hotgoods:100 '{"id":100, "price": 998, "title": "鸟哥笔记"}' # 缓存热卖书籍基本信息
+  ```
+
+* 活跃用户数统计
+
+  ```bash
+  # 假如：某东 618 活动，需要为用户准备礼品；现需要统计最近三天活跃用户，用于备货
+  # 通过bitmap，以日期为key记录用户的登录，然后拿对应日期做与运算，就很容易实现
+  
+  setbit 20210615 10 1  # 6月15号，ID为10的用户登录
+  setbit 20210615 8 1   # 6月15号，ID为8的用户登录
+  
+  setbit 20210616 10 1  # 6月16号，ID为10的用户登录
+  setbit 20210616 15 1  # 6月16号，ID为15的用户登录
+  setbit 20210616 5 1   # 6月16号，ID为5的用户登录
+  
+  setbit 20210617 15 1  # 6月17号，ID为15的用户登录
+  setbit 20210617 13 1  # 6月17号，ID为13的用户登录
+  
+  # 可以看出15、16、17号这三天，总共有5位用户活跃
+  bitop or mau 20210615 20210616 20210617 # 会将计算结果以mau作为key存储
+  bitcount mau # 结果为5
+  ```
+
+  ![redis_string_bitmap_活跃用户数](../img/redis_05.png)
+
+* 用户登录天数统计
+
+  ```bash
+  # 需求：需要统计某个用户某个时间段的登录天数
+  # ID为88的用户，1月份中有登陆行为的天数；以1月1号为第1天，12月31号为第365天
+  
+  setbit login:88 0 1 # 第一天有登陆
+  setbit login:88 8 1 # 第8天有登陆
+  setbit login:88 12 1 # 第12天有登陆
+  setbit login:88 13 1 # 第13天有登陆
+  setbit login:88 20 1 # 第20天有登陆
+  setbit login:88 25 1 # 第25天有登陆
+  setbit login:88 27 1 # 第27天有登陆
+  
+  bitcount login:88 # 结果为：7
+  ```
+
+### 2、列表—list
+
+1)、常用命令
+
+```tex
+lpush rpush | lpop rpop | blpop brpop | lrem linsert | llen | lrange | lindex
+```
+
+2)、使用场景
+
+ * 栈 
+
+   ```tex
+   lpush
+   lpop
+   ```
+
+ * 队列
+
+   ```tex
+   lpush
+   rpop
+   ```
+
+ * 阻塞MQ
+
+   ```tex
+   lpush
+   brpop
+   ```
+
+![redis_list_结构](../img/redis_06.png)
+
+### 3、哈希—hash
+
+1)、常用命令
+
+ ```tex
+ hset hget | hmset | hmget | hstrlen | hgetall | hlen | hincrby | 
+ hincrbyfloat | hexists | hdel | hkeys
+ ```
+
+2)、使用场景
+
+ * 存储对象信息
+
+   ```bash
+   # 存储用户信息；如姓名，年龄，地址等
+   hmset uid:101 name zhangsan age 18
+   ```
+
+
 
