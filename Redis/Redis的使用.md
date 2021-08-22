@@ -1,3 +1,7 @@
+Redis结构表示
+
+![redis_结构](../img/redis_07.png)
+
 ## 一、Redis 键(Key) 构成
 
 ```c
@@ -140,6 +144,8 @@ setbit getbit | bitcount | bitop | bitpos
 
 ### 2、列表—list
 
+> List， 元素可以重复，可以按照添加的先后保证顺序
+
 1)、常用命令
 
 ```tex
@@ -186,8 +192,91 @@ lpush rpush | lpop rpop | blpop brpop | lrem linsert | llen | lrange | lindex
 
    ```bash
    # 存储用户信息；如姓名，年龄，地址等
-   hmset uid:101 name zhangsan age 18
+   hmset uid:101 name zhangsan age 18 addr 北京
    ```
+
+### 4、集合—set
+
+> 集合中的元素会去重，保证不重复
+
+ 1)、常用命令
+
+  ```tex
+  sadd srem spop | sinter sdiff sunion| sinterstore sdiffstore sunionstore | 
+  smembers | sismember | srandmember | scard
+  ```
+
+2)、使用场景
+
+> 抽奖和关注模型两大类
+
+ * 抽奖程序
+
+   ```bash
+   # 100张购物卡，共30人参与抽奖
+   # 奖品大于抽奖人
+   sadd k1 tom xxoo xoox xoxo oxxo ooxx oxox # 将30个参与抽奖的人添加到集合
+   srandmember k1 -100 # 这里-100，会返回100个元素，随机重复
+   
+   # 公司年会抽奖，一等奖1  二等奖3  三等奖 5  中奖者会从参与者中剔除，不再参与其他奖项
+   sadd k1 tom xxoo xoox xoxo oxxo ooxx oxox # 将参与抽奖员工添加到集合
+   spop k1 1 # 一等奖 
+   spop k1 3 # 二等奖
+   spop k1 5 # 三等奖
+   ```
+
+ * 共同关注
+
+   ```bash
+   # 小王关注了：刘德华、罗大佑、郭富城、黎明
+   # 小李关注了：黎明、张曼玉、马龙、张继科
+   # 求小王和小李共同关注的人
+   sadd k1 刘德华 罗大佑 郭富城 黎明
+   sadd k2 黎明 张曼玉 马龙 张继科
+   sinter k1 k2 # 结果为黎明
+   ```
+
+ * 猜你喜欢
+
+   ```bash
+   # 我关注了：刘德华、罗大佑、郭富城、黎明
+   # 小王关注了：黎明、张曼玉、马龙、张继科
+   # 当我进入小王的主页后，可以推荐我关注 张曼玉、马龙、张继科
+   sadd k1 刘德华 罗大佑 郭富城 黎明
+   sadd k2 黎明 张曼玉 马龙 张继科
+   sdiff k2 k1 # 张曼玉 马龙 张继科
+   ```
+
+### 5、有序集合—sort_set
+
+> 集合中数据去重，并可以按照给出的规则(一定的分值)排序
+
+1)、常用命令
+
+ ```bash
+ zadd zrange zrangebyscore zcount | zincrby | zinterstore zunionstore | 
+ zrevrange  zrevrangebyscore | zremrangebyscore
+ ```
+
+2)、使用场景
+
+* 排行榜
+
+  ```bash
+  # 热点新闻，每点击一次，热搜值加1
+  zincrby hotnews:20210822 1 汪峰开演唱会
+  
+  # 展示当天排行榜前十的热搜
+  zrevrange hotnews:20210822 0 9 withscores
+  
+  # 计算最近3日热搜榜
+  zunionstore unkey 3 hotnews:20210820 hotnews:20210821 hotnews:20210822
+  
+  # 从上述3日热搜榜中，展示前3
+  zrevrange unkey 0 2 withscores
+  ```
+
+* 带有权重的队列
 
 
 
