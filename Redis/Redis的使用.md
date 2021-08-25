@@ -349,5 +349,50 @@ lpush rpush | lpop rpop | blpop brpop | lrem linsert | llen | lrange | lindex
 
 针对上述问题，可以将保存DB和sort_set的部分，也以订阅者身份去监听Client的消息发布，然后通过监听的服务负责保存数据。
 
+![redis_im_02](../img/redis_11.png)
+
 ## 七、事务
+
+1. 常用命令
+
+   ```tex
+   multi  exec | watch  unwatch | discard
+   ```
+
+2. Redis事务与关系型数据库(如MySQL)事务的区别
+
+   * Redis事务不支持回滚
+   * Redis事务不是原子性的
+   * 对某些键，开启watch后，事务提交时，如果监听的键的值有变化，则事务不执行
+
+3. Redis事务不支持回滚的原因(官网有说明)
+
+   * Redis命令只会因为语法错误而失败，比如命令用在了错误的类型上；这也就说这些错误是由编程错误引起的，他应该在开发过程中就被发现，而不是带到生产环境
+   * 由于不需要支持回滚，所以Redis的内部可以保持简单且快速
+
+4. 使用示例与说明如下图：
+
+   ![redis_transaction_1](../img/redis_12.png)
+
+   ![redis_transaction_2](../img/redis_13.jpg)
+
+5. 开启watch监听事务示例：
+
+   ![redis_transaction_3](../img/redis_14.png)
+
+## 八、Redis扩展功能
+
+### 1. 布隆过滤器—Bloom
+
+1. 安装
+
+   ```bash
+   
+   ```
+
+2. 使用
+
+3. 使用场景
+
+
 
