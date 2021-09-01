@@ -380,6 +380,8 @@ lpush rpush | lpop rpop | blpop brpop | lrem linsert | llen | lrange | lindex
 
    ![redis_transaction_3](../img/redis_14.png)
 
+
+
 ## 八、Redis扩展功能
 
 ### 1. 布隆过滤器—Bloom
@@ -387,12 +389,76 @@ lpush rpush | lpop rpop | blpop brpop | lrem linsert | llen | lrange | lindex
 1. 安装
 
    ```bash
+   # 下载源码，注意有子模块
+   [root@ff4da083e253 soft]# git clone --recursive git@github.com:RedisBloom/RedisBloom.git
+   [root@ff4da083e253 soft]# cd RedisBloom/
+   [root@ff4da083e253 RedisBloom]# git submodule sync
+   [root@ff4da083e253 RedisBloom]# git submodule init
+   [root@ff4da083e253 RedisBloom]# git submodule update
    
+   # 编译 
+   [root@ff4da083e253 RedisBloom]# make  
+   
+   # 报错，提示 cmake command not found
+   # 所以开始安装 cmake
+   [root@ff4da083e253 RedisBloom]# cd /root/soft
+   [root@ff4da083e253 soft]# wget https://cmake.org/files/v3.20/cmake-3.20.0.tar.gz
+   [root@ff4da083e253 soft]# tar -zxvf cmake-3.20.0.tar.gz
+   [root@ff4da083e253 soft]# cd cmake-3.20.0
+   [root@ff4da083e253 cmake-3.20.0]# ./bootstrap  ## 如果提示 not find openssl 的错误， 则yum -y install openssl-devel 进行安装， 然后重新  ./bootstrap
+   [root@ff4da083e253 cmake-3.20.0]# gmake
+   [root@ff4da083e253 cmake-3.20.0]# gmake install
+   [root@ff4da083e253 cmake-3.20.0]# cmake --version ## 打印出版本号，则说明安装成功
+   
+   # 继续编译安装 RedisBloom
+   [root@ff4da083e253 cmake-3.20.0]# cd /root/soft/RedisBloom/
+   [root@ff4da083e253 RedisBloom]# make distclean 
+   [root@ff4da083e253 RedisBloom]# make 
+   
+   # 将安装好的RedisBloom.so文件移动到Redis安装目录下
+   [root@ff4da083e253 RedisBloom]# cp redisbloom.so /opt/wuliang/redis6/
+   
+   
+   # 启动Redis，并load RedisBloom.so， 需要注意，先指定配置文件，再load模块，并且.so文件需使用绝对路径
+   [root@ff4da083e253 redis6]# redis-server /etc/redis/6379.conf --loadmodule /opt/wuliang/redis6/redisbloom.so
+   
+   # 修改Redis配置文件，然后启动
+   [root@ff4da083e253 redis6]# vi /etc/redis/6380.conf 
+   # 打开配置文件后，在文件末尾增加： loadmodule /opt/wuliang/redis6/redisbloom.so
+   
+   # 配置文件修改后，重启Redis server
+   [root@ff4da083e253 redis6]# service redis_6380 restart
    ```
 
-2. 使用
+2. 原理
+
+   ​		可以将布隆过滤器看成是一个容器，这个容器中都是一个一个的小格子(即bitmap类型的每一个bit位) 那么如何向这个容器添加数据呢？
+
+   * 当要向布隆过滤器添加一个元素key时，可以通过多个hash函数，算出一个值，然后将这个值所在位置的格子置为1。
+
+     ![redis_bloom](../img/redis_15.png)
+
+   * 判断是否存在？新来的数据，跟添加时一样，分别用不同的hash函数算出各个值，然后查看其对应位置的值是否为1，若存在一个不为1的情况，那么就一定不存在布隆过滤器；若全部为1，那么就有可能存在于布隆过滤器。因为hash算出来的结果存在哈希碰撞的问题，所以会有一定的误伤，但是误伤的概率很小。
+
+   可以得出结论：布隆过滤器可以判断一个值一定不存在，但是无法判断一定存在。
 
 3. 使用场景
 
+   * 解决缓存穿透的问题 （例如：购物网站搜索商品，大量请求搜素不存在的商品）
 
+     一般情况下，先查询缓存中是否有数据，当缓存中没有时，就去数据库中查找。但是当数据库中也不存在时，并且有大量请求时就会有大批量的查询落到了数据库，这就是缓存穿透。
+
+     针对此类问题，就可以使用Bloom来解决。把数据库中存在的商品都存进布隆过滤器中，当有请求来时，先在布隆过滤器中查找；如果不存在直接返回，如果存在就去缓存中查找。
+
+   * 黑名单校验
+
+     比如有上10亿个手机号为黑名单，现在需要快速的判断新来的手机号是否在这些手机号里面
+
+
+
+## 九、Redis作为数据库和缓存的区别？
+
+1. 缓存数据相对来说不重要
+2. 缓存数据不是全量数据，一般是热点数据
+3. 缓存数据应该随着访问变化而变化
 
